@@ -15,7 +15,7 @@ class SubGoal {
   final String title;
 
   @HiveField(3)
-  final DateTime? dueDate;
+  final DateTime dueDate;
 
   @HiveField(4)
   final int estimatedMinutes;
@@ -30,22 +30,10 @@ class SubGoal {
     required this.id,
     required this.goalId,
     required this.title,
-    this.dueDate,
+    required this.dueDate,
     required this.estimatedMinutes,
     required this.isCompleted,
     required this.logs,
   });
-
-  factory SubGoal.empty({required String goalId}) {
-    return SubGoal(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      goalId: goalId,
-      title: '',
-      dueDate: null,
-      estimatedMinutes: 60,
-      isCompleted: false,
-      logs: [],
-    );
-  }
 }
 

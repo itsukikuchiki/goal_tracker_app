@@ -20,7 +20,7 @@ class SubGoalAdapter extends TypeAdapter<SubGoal> {
       id: fields[0] as String,
       goalId: fields[1] as String,
       title: fields[2] as String,
-      dueDate: fields[3] as DateTime?,
+      dueDate: fields[3] as DateTime,
       estimatedMinutes: fields[4] as int,
       isCompleted: fields[5] as bool,
       logs: (fields[6] as List).cast<DailyLog>(),

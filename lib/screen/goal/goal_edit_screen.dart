@@ -1,177 +1,153 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../../model/goal.dart';
 import '../../model/sub_goal.dart';
 import '../../provider/goal_provider.dart';
+import '../../widget/subgoal_editor.dart';
 
 class GoalEditScreen extends ConsumerStatefulWidget {
-  const GoalEditScreen({super.key});
+  final Goal? goal; // 为空表示新增
+
+  const GoalEditScreen({super.key, this.goal});
 
   @override
   ConsumerState<GoalEditScreen> createState() => _GoalEditScreenState();
 }
 
 class _GoalEditScreenState extends ConsumerState<GoalEditScreen> {
-  final titleController = TextEditingController();
-  final descController = TextEditingController();
-  DateTime startDate = DateTime.now();
-  DateTime endDate = DateTime.now().add(const Duration(days: 30));
-  int priority = 2;
+  final _formKey = GlobalKey<FormState>();
+  late String _title;
+  late String _description;
+  late DateTime _startDate;
+  late DateTime _endDate;
+  int _priority = 2;
+  List<SubGoal> _subGoals = [];
 
-  final List<SubGoal> subGoals = [];
-
-  void _addSubGoal() {
-    setState(() {
-      subGoals.add(SubGoal.empty(goalId: 'temp'));
-    });
+  @override
+  void initState() {
+    super.initState();
+    final g = widget.goal;
+    _title = g?.title ?? '';
+    _description = g?.description ?? '';
+    _startDate = g?.startDate ?? DateTime.now();
+    _endDate = g?.endDate ?? DateTime.now().add(const Duration(days: 30));
+    _priority = g?.priority ?? 2;
+    _subGoals = List.from(g?.subGoals ?? []);
   }
 
-  void _saveGoal() {
-    final goal = Goal(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      title: titleController.text.trim(),
-      description: descController.text.trim(),
-      startDate: startDate,
-      endDate: endDate,
-      priority: priority,
-      subGoals: subGoals,
+  Future<void> _pickDateRange() async {
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+      initialDateRange: DateTimeRange(start: _startDate, end: _endDate),
     );
+    if (picked != null) {
+      setState(() {
+        _startDate = picked.start;
+        _endDate = picked.end;
+      });
+    }
+  }
 
-    ref.read(goalListProvider.notifier).addGoal(goal);
-    Navigator.pop(context);
+  void _save() async {
+    if (_formKey.currentState!.validate()) {
+      _formKey.currentState!.save();
+
+      final newGoal = Goal(
+        id: widget.goal?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
+        title: _title,
+        description: _description,
+        startDate: _startDate,
+        endDate: _endDate,
+        priority: _priority,
+        subGoals: _subGoals,
+      );
+
+      final notifier = ref.read(goalListProvider.notifier);
+      if (widget.goal == null) {
+        await notifier.addGoal(newGoal);
+      } else {
+        await notifier.updateGoal(newGoal);
+      }
+
+      if (mounted) Navigator.of(context).pop();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
+    final formatter = DateFormat.yMMMd();
     return Scaffold(
       appBar: AppBar(
-        title: const Text("创建新目标"),
+        title: Text(widget.goal == null ? '新增目标' : '编辑目标'),
+        actions: [
+          IconButton(icon: const Icon(Icons.save), onPressed: _save),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
-        child: ListView(
-          children: [
-            TextField(
-              controller: titleController,
-              decoration: const InputDecoration(
-                labelText: "主目标标题",
-                border: OutlineInputBorder(),
+        child: Form(
+          key: _formKey,
+          child: ListView(
+            children: [
+              TextFormField(
+                initialValue: _title,
+                decoration: const InputDecoration(labelText: '标题'),
+                validator: (v) => v!.isEmpty ? '请输入标题' : null,
+                onSaved: (v) => _title = v!,
               ),
-              style: theme.textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: descController,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: "目标描述",
-                border: OutlineInputBorder(),
+              TextFormField(
+                initialValue: _description,
+                decoration: const InputDecoration(labelText: '描述'),
+                onSaved: (v) => _description = v ?? '',
               ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: ListTile(
-                    title: const Text("开始日期"),
-                    subtitle: Text("${startDate.toLocal()}".split(' ')[0]),
-                    onTap: () async {
-                      final picked = await showDatePicker(
-                        context: context,
-                        initialDate: startDate,
-                        firstDate: DateTime(2020),
-                        lastDate: DateTime(2100),
-                      );
-                      if (picked != null) {
-                        setState(() => startDate = picked);
-                      }
-                    },
-                  ),
-                ),
-                Expanded(
-                  child: ListTile(
-                    title: const Text("结束日期"),
-                    subtitle: Text("${endDate.toLocal()}".split(' ')[0]),
-                    onTap: () async {
-                      final picked = await showDatePicker(
-                        context: context,
-                        initialDate: endDate,
-                        firstDate: startDate,
-                        lastDate: DateTime(2100),
-                      );
-                      if (picked != null) {
-                        setState(() => endDate = picked);
-                      }
-                    },
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text("优先级", style: theme.textTheme.titleMedium),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [1, 2, 3].map((p) {
-                return ChoiceChip(
-                  label: Text("优先级 $p"),
-                  selected: priority == p,
-                  onSelected: (_) => setState(() => priority = p),
-                );
-              }).toList(),
-            ),
-            const Divider(height: 32),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text("子目标", style: theme.textTheme.titleMedium),
-                IconButton(
-                  icon: const Icon(Icons.add),
-                  onPressed: _addSubGoal,
-                )
-              ],
-            ),
-            ...subGoals.asMap().entries.map((entry) {
-              final index = entry.key;
-              final sub = entry.value;
-              return Card(
-                margin: const EdgeInsets.symmetric(vertical: 6),
-                child: Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: TextField(
-                    decoration: InputDecoration(
-                      labelText: "子目标 ${index + 1}",
+              const SizedBox(height: 12),
+              ListTile(
+                title: Text('${formatter.format(_startDate)} - ${formatter.format(_endDate)}'),
+                trailing: const Icon(Icons.calendar_today),
+                onTap: _pickDateRange,
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<int>(
+                value: _priority,
+                items: const [
+                  DropdownMenuItem(value: 1, child: Text('高优先级')),
+                  DropdownMenuItem(value: 2, child: Text('中优先级')),
+                  DropdownMenuItem(value: 3, child: Text('低优先级')),
+                ],
+                decoration: const InputDecoration(labelText: '优先级'),
+                onChanged: (v) => setState(() => _priority = v ?? 2),
+              ),
+              const Divider(height: 32),
+              const Text('子目标', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              ..._subGoals.map((sub) => ListTile(
+                    title: Text(sub.title),
+                    subtitle: Text('截止：${formatter.format(sub.dueDate)}'),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.delete),
+                      onPressed: () {
+                        setState(() => _subGoals.remove(sub));
+                      },
                     ),
-                    onChanged: (val) {
-                      subGoals[index] = SubGoal(
-                        id: sub.id,
-                        goalId: sub.goalId,
-                        title: val,
-                        dueDate: sub.dueDate,
-                        estimatedMinutes: sub.estimatedMinutes,
-                        isCompleted: false,
-                        logs: [],
-                      );
-                    },
-                  ),
-                ),
-              );
-            })
-          ],
-        ),
-      ),
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.all(16),
-        child: ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
+                  )),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                icon: const Icon(Icons.add),
+                label: const Text('添加子目标'),
+                onPressed: () async {
+                  final newSub = await showDialog<SubGoal>(
+                    context: context,
+                    builder: (_) => SubGoalEditor(goalId: widget.goal?.id ?? 'temp'),
+                  );
+                  if (newSub != null) {
+                    setState(() => _subGoals.add(newSub));
+                  }
+                },
+              )
+            ],
           ),
-          onPressed: _saveGoal,
-          child: const Text("保存目标"),
         ),
       ),
     );
