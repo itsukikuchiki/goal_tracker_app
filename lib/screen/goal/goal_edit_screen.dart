@@ -65,16 +65,18 @@ class _GoalEditScreenState extends ConsumerState<GoalEditScreen> {
         subGoals: _subGoals,
       );
 
-      final notifier = ref.read(goalListProvider.notifier);
-      if (widget.goal == null) {
+     final notifier = ref.read(goalListProvider.notifier);
+     if (widget.goal == null) {
         await notifier.addGoal(newGoal);
       } else {
         await notifier.updateGoal(newGoal);
       }
 
-      if (mounted) Navigator.of(context).pop();
-    }
+     await notifier.loadGoals(); // ✅ 添加此行，强制重新读取 Hive 中的所有数据
+
+     if (mounted) Navigator.of(context).pop();
   }
+}
 
   @override
   Widget build(BuildContext context) {

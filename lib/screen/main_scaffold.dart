@@ -4,7 +4,7 @@ import 'package:goal_tracker_app/screen/goal/goal_list_screen.dart';
 import 'package:goal_tracker_app/screen/settings/settings_screen.dart';
 import 'package:goal_tracker_app/screen/stats/stats_screen.dart';
 import 'package:goal_tracker_app/screen/goal/goal_edit_screen.dart';
-import 'package:goal_tracker_app/screen/calendar/schedule_add_screen.dart';
+import 'package:goal_tracker_app/screen/calendar/schedule_edit_screen.dart';
 
 class MainScaffold extends StatefulWidget {
   const MainScaffold({super.key});
@@ -62,7 +62,7 @@ class _MainScaffoldState extends State<MainScaffold> {
                   Navigator.pop(context);
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const ScheduleAddScreen()),
+                    MaterialPageRoute(builder: (_) => const ScheduleEditScreen()),
                   );
                 },
               ),
