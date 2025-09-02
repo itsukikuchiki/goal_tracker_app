@@ -13,10 +13,14 @@ class DailyLog {
   @HiveField(2)
   final String? note;
 
+  @HiveField(3)
+  final String subGoalId; // 新增字段
+
   DailyLog({
     required this.date,
     required this.minutesSpent,
     this.note,
+    this.subGoalId = '',
   });
 }
 

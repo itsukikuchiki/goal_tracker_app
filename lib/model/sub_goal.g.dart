@@ -20,8 +20,8 @@ class SubGoalAdapter extends TypeAdapter<SubGoal> {
       id: fields[0] as String,
       goalId: fields[1] as String,
       title: fields[2] as String,
-      dueDate: fields[3] as DateTime,
-      estimatedMinutes: fields[4] as int,
+      startTime: fields[3] as DateTime,
+      endTime: fields[4] as DateTime,
       isCompleted: fields[5] as bool,
       logs: (fields[6] as List).cast<DailyLog>(),
     );
@@ -38,9 +38,9 @@ class SubGoalAdapter extends TypeAdapter<SubGoal> {
       ..writeByte(2)
       ..write(obj.title)
       ..writeByte(3)
-      ..write(obj.dueDate)
+      ..write(obj.startTime)
       ..writeByte(4)
-      ..write(obj.estimatedMinutes)
+      ..write(obj.endTime)
       ..writeByte(5)
       ..write(obj.isCompleted)
       ..writeByte(6)

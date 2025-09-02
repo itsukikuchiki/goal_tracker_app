@@ -20,19 +20,22 @@ class DailyLogAdapter extends TypeAdapter<DailyLog> {
       date: fields[0] as DateTime,
       minutesSpent: fields[1] as int,
       note: fields[2] as String?,
+      subGoalId: fields[3] as String,
     );
   }
 
   @override
   void write(BinaryWriter writer, DailyLog obj) {
     writer
-      ..writeByte(3)
+      ..writeByte(4)
       ..writeByte(0)
       ..write(obj.date)
       ..writeByte(1)
       ..write(obj.minutesSpent)
       ..writeByte(2)
-      ..write(obj.note);
+      ..write(obj.note)
+      ..writeByte(3)
+      ..write(obj.subGoalId);
   }
 
   @override

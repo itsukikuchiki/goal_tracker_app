@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:goal_tracker_app/screen/goal/goal_list_screen.dart';
+import 'package:goal_tracker_app/screen/goal/goal_screen.dart';
 import 'package:goal_tracker_app/widget/onboarding/onboarding_step.dart';
 
 class OnboardingScreen extends StatefulWidget {
@@ -40,7 +40,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     } else {
       // 完成引导后跳转主页面
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const GoalListScreen()),
+        MaterialPageRoute(builder: (_) => const GoalScreen()),
       );
     }
   }

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:goal_tracker_app/screen/calendar/calendar_screen.dart';
-import 'package:goal_tracker_app/screen/goal/goal_list_screen.dart';
+import 'package:goal_tracker_app/screen/goal/goal_screen.dart';
 import 'package:goal_tracker_app/screen/settings/settings_screen.dart';
 import 'package:goal_tracker_app/screen/stats/stats_screen.dart';
 import 'package:goal_tracker_app/screen/goal/goal_edit_screen.dart';
@@ -18,7 +18,7 @@ class _MainScaffoldState extends State<MainScaffold> {
 
   final List<Widget> _pages = [
     const CalendarScreen(),
-    const GoalListScreen(),
+    const GoalScreen(),
     const Placeholder(), // 中间 + 按钮不切换页面
     const StatsScreen(),
     const SettingsScreen(),

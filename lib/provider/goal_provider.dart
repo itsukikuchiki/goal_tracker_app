@@ -8,7 +8,7 @@ final goalRepositoryProvider = Provider((ref) => GoalRepository());
 
 final goalListProvider = StateNotifierProvider<GoalListNotifier, List<Goal>>((ref) {
   final repo = ref.read(goalRepositoryProvider);
-  return GoalListNotifier(repo)..loadGoals(); // 初始加载
+  return GoalListNotifier(repo)..loadGoals();
 });
 
 class GoalListNotifier extends StateNotifier<List<Goal>> {
@@ -42,37 +42,41 @@ class GoalListNotifier extends StateNotifier<List<Goal>> {
     await repository.clearAllGoals();
     state = [];
   }
-  
+
   Future<void> updateLog(String goalId, String subGoalId, DailyLog log) async {
-   final updatedGoals = state.map((goal) {
-     if (goal.id != goalId) return goal;
+    final updatedGoals = state.map((goal) {
+      if (goal.id != goalId) return goal;
 
-     final updatedSubGoals = goal.subGoals.map((sub) {
-       if (sub.id != subGoalId) return sub;
-       return SubGoal(
-         id: sub.id,
-         goalId: sub.goalId,
-         title: sub.title,
-         dueDate: sub.dueDate,
-         estimatedMinutes: sub.estimatedMinutes,
-         isCompleted: sub.isCompleted,
-         logs: [...sub.logs, log]..sort((a, b) => a.date.compareTo(b.date)),
-       );
-     }).toList();
+      final updatedSubGoals = goal.subGoals.map((sub) {
+        if (sub.id != subGoalId) return sub;
+        return sub.copyWith(
+          logs: [...sub.logs, log]..sort((a, b) => a.date.compareTo(b.date)),
+        );
+      }).toList();
 
-     return Goal(
-       id: goal.id,
-       title: goal.title,
-       description: goal.description,
-       startDate: goal.startDate,
-       endDate: goal.endDate,
-       priority: goal.priority,
-       subGoals: updatedSubGoals,
-     );
-   }).toList();
+      return goal.copyWith(subGoals: updatedSubGoals);
+    }).toList();
 
-   state = updatedGoals;
-   await repository.saveGoal(state.firstWhere((g) => g.id == goalId));
+    state = updatedGoals;
+    await repository.saveGoal(state.firstWhere((g) => g.id == goalId));
+  }
+
+  void toggleSubGoalCompleted(String goalId, String subGoalId) {
+    state = state.map((goal) {
+      if (goal.id != goalId) return goal;
+
+      final updatedSubGoals = goal.subGoals.map((sub) {
+        if (sub.id != subGoalId) return sub;
+        return sub.copyWith(isCompleted: !sub.isCompleted);
+      }).toList();
+
+      final allCompleted = updatedSubGoals.every((s) => s.isCompleted);
+
+      return goal.copyWith(
+        subGoals: updatedSubGoals,
+        isCompleted: allCompleted,
+      );
+    }).toList();
   }
 }
 

@@ -4,8 +4,13 @@ import '../model/sub_goal.dart';
 
 class SubGoalEditor extends StatefulWidget {
   final String goalId;
+  final SubGoal? subGoal;
 
-  const SubGoalEditor({super.key, required this.goalId});
+  const SubGoalEditor({
+    super.key,
+    required this.goalId,
+    this.subGoal,
+  });
 
   @override
   State<SubGoalEditor> createState() => _SubGoalEditorState();
@@ -13,81 +18,114 @@ class SubGoalEditor extends StatefulWidget {
 
 class _SubGoalEditorState extends State<SubGoalEditor> {
   final _formKey = GlobalKey<FormState>();
-  late String _title;
-  DateTime _dueDate = DateTime.now().add(const Duration(days: 7));
-  int _estimatedMinutes = 30;
+  String _title = '';
+  DateTime? _startTime;
+  DateTime? _endTime;
 
-  Future<void> _pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _dueDate,
-      firstDate: DateTime.now(),
-      lastDate: DateTime(2100),
-    );
-    if (picked != null) {
-      setState(() => _dueDate = picked);
+  @override
+  void initState() {
+    super.initState();
+    if (widget.subGoal != null) {
+      _title = widget.subGoal!.title;
+      _startTime = widget.subGoal!.startTime;
+      _endTime = widget.subGoal!.endTime;
     }
   }
 
-  void _save() {
-    if (_formKey.currentState!.validate()) {
-      _formKey.currentState!.save();
-
-      final subGoal = SubGoal(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        goalId: widget.goalId,
-        title: _title,
-        dueDate: _dueDate,
-        estimatedMinutes: _estimatedMinutes,
-        isCompleted: false,
-        logs: [],
-      );
-
-      Navigator.of(context).pop(subGoal);
+  Future<void> _pickDate({
+    required bool isStart,
+  }) async {
+    final now = DateTime.now();
+    final initialDate = isStart ? _startTime : _endTime;
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initialDate ?? now,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+    );
+    if (picked != null) {
+      setState(() {
+        if (isStart) {
+          _startTime = picked;
+        } else {
+          _endTime = picked;
+        }
+      });
     }
+  }
+
+  void _submit() {
+    if (!_formKey.currentState!.validate()) return;
+    if (_startTime == null || _endTime == null || _startTime!.isAfter(_endTime!)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('請選擇有效的日期範圍')),
+      );
+      return;
+    }
+
+    final subGoal = widget.subGoal?.copyWith(
+          title: _title,
+          startTime: _startTime!,
+          endTime: _endTime!,
+          isCompleted: widget.subGoal?.isCompleted ?? false,
+        ) ??
+        SubGoal(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          goalId: widget.goalId,
+          title: _title,
+          startTime: _startTime!,
+          endTime: _endTime!,
+          isCompleted: false,
+          logs: const [],
+        );
+
+    Navigator.of(context).pop(subGoal);
   }
 
   @override
   Widget build(BuildContext context) {
-    final formatter = DateFormat.yMMMd();
+    final df = DateFormat('yyyy-MM-dd');
+
     return AlertDialog(
-      title: const Text('新增子目标'),
+      title: Text(widget.subGoal == null ? '新增子目标' : '编辑子目标'),
       content: Form(
         key: _formKey,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextFormField(
-              decoration: const InputDecoration(labelText: '子目标标题'),
-              validator: (v) => v == null || v.trim().isEmpty ? '请输入标题' : null,
-              onSaved: (v) => _title = v!.trim(),
+              initialValue: _title,
+              decoration: const InputDecoration(labelText: '标题'),
+              validator: (v) => v == null || v.isEmpty ? '请输入标题' : null,
+              onChanged: (v) => _title = v,
             ),
             const SizedBox(height: 12),
             ListTile(
-              title: Text('截止日期：${formatter.format(_dueDate)}'),
+              title: Text(_startTime == null
+                  ? '选择开始日期'
+                  : df.format(_startTime!)),
               trailing: const Icon(Icons.calendar_today),
-              onTap: _pickDate,
+              onTap: () => _pickDate(isStart: true),
             ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<int>(
-              value: _estimatedMinutes,
-              decoration: const InputDecoration(labelText: '预估时间（分钟）'),
-              items: const [
-                DropdownMenuItem(value: 15, child: Text('15分钟')),
-                DropdownMenuItem(value: 30, child: Text('30分钟')),
-                DropdownMenuItem(value: 45, child: Text('45分钟')),
-                DropdownMenuItem(value: 60, child: Text('1小时')),
-                DropdownMenuItem(value: 90, child: Text('1.5小时')),
-                DropdownMenuItem(value: 120, child: Text('2小时')),
-              ],
-              onChanged: (v) => setState(() => _estimatedMinutes = v ?? 30),
+            ListTile(
+              title: Text(_endTime == null
+                  ? '选择结束日期'
+                  : df.format(_endTime!)),
+              trailing: const Icon(Icons.calendar_today),
+              onTap: () => _pickDate(isStart: false),
             ),
           ],
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('取消')),
-        ElevatedButton(onPressed: _save, child: const Text('保存')),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('取消'),
+        ),
+        ElevatedButton(
+          onPressed: _submit,
+          child: const Text('确定'),
+        ),
       ],
     );
   }

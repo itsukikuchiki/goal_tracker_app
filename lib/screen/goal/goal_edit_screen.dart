@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+
 import '../../model/goal.dart';
 import '../../model/sub_goal.dart';
 import '../../provider/goal_provider.dart';
 import '../../widget/subgoal_editor.dart';
+import '../../widget/color_picker_grid.dart';
 
 class GoalEditScreen extends ConsumerStatefulWidget {
-  final Goal? goal; // 为空表示新增
+  final Goal? goal;
 
   const GoalEditScreen({super.key, this.goal});
 
@@ -17,11 +19,13 @@ class GoalEditScreen extends ConsumerStatefulWidget {
 
 class _GoalEditScreenState extends ConsumerState<GoalEditScreen> {
   final _formKey = GlobalKey<FormState>();
+
   late String _title;
   late String _description;
   late DateTime _startDate;
   late DateTime _endDate;
   int _priority = 2;
+  int _colorHex = 0xFFB3E5FC;
   List<SubGoal> _subGoals = [];
 
   @override
@@ -33,6 +37,7 @@ class _GoalEditScreenState extends ConsumerState<GoalEditScreen> {
     _startDate = g?.startDate ?? DateTime.now();
     _endDate = g?.endDate ?? DateTime.now().add(const Duration(days: 30));
     _priority = g?.priority ?? 2;
+    _colorHex = g?.colorHex ?? 0xFFB3E5FC;
     _subGoals = List.from(g?.subGoals ?? []);
   }
 
@@ -63,24 +68,29 @@ class _GoalEditScreenState extends ConsumerState<GoalEditScreen> {
         endDate: _endDate,
         priority: _priority,
         subGoals: _subGoals,
+        colorHex: _colorHex,
+        isCompleted: widget.goal?.isCompleted ?? false,
       );
 
-     final notifier = ref.read(goalListProvider.notifier);
-     if (widget.goal == null) {
+      final notifier = ref.read(goalListProvider.notifier);
+      if (widget.goal == null) {
         await notifier.addGoal(newGoal);
       } else {
         await notifier.updateGoal(newGoal);
       }
 
-     await notifier.loadGoals(); // ✅ 添加此行，强制重新读取 Hive 中的所有数据
+      await notifier.loadGoals();
 
-     if (mounted) Navigator.of(context).pop();
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+    }
   }
-}
 
   @override
   Widget build(BuildContext context) {
     final formatter = DateFormat.yMMMd();
+
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.goal == null ? '新增目标' : '编辑目标'),
@@ -97,7 +107,7 @@ class _GoalEditScreenState extends ConsumerState<GoalEditScreen> {
               TextFormField(
                 initialValue: _title,
                 decoration: const InputDecoration(labelText: '标题'),
-                validator: (v) => v!.isEmpty ? '请输入标题' : null,
+                validator: (v) => v == null || v.isEmpty ? '请输入标题' : null,
                 onSaved: (v) => _title = v!,
               ),
               TextFormField(
@@ -122,18 +132,80 @@ class _GoalEditScreenState extends ConsumerState<GoalEditScreen> {
                 decoration: const InputDecoration(labelText: '优先级'),
                 onChanged: (v) => setState(() => _priority = v ?? 2),
               ),
+              const SizedBox(height: 16),
+              const Text('颜色选择', style: TextStyle(fontSize: 16)),
+              const SizedBox(height: 8),
+              ColorPickerGrid(
+                selectedColor: _colorHex,
+                onColorSelected: (color) {
+                  setState(() => _colorHex = color);
+                },
+              ),
               const Divider(height: 32),
               const Text('子目标', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              ..._subGoals.map((sub) => ListTile(
-                    title: Text(sub.title),
-                    subtitle: Text('截止：${formatter.format(sub.dueDate)}'),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.delete),
-                      onPressed: () {
-                        setState(() => _subGoals.remove(sub));
-                      },
-                    ),
-                  )),
+              ReorderableListView(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                onReorder: (oldIndex, newIndex) {
+                  setState(() {
+                    if (newIndex > oldIndex) newIndex--;
+                    final item = _subGoals.removeAt(oldIndex);
+                    _subGoals.insert(newIndex, item);
+                  });
+                },
+                children: _subGoals
+                    .asMap()
+                    .entries
+                    .map((entry) {
+                      final sub = entry.value;
+                      return ListTile(
+                        key: ValueKey(sub.id),
+                        title: Text(sub.title),
+                        subtitle: Text('日期：${DateFormat.yMMMd().format(sub.startTime)}'),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.delete),
+                          onPressed: () {
+                            showDialog(
+                              context: context,
+                              builder: (_) => AlertDialog(
+                                title: const Text('确认删除'),
+                                content: const Text('确定要删除这个子目标吗？'),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context),
+                                    child: const Text('取消'),
+                                  ),
+                                  TextButton(
+                                    onPressed: () {
+                                      setState(() => _subGoals.remove(sub));
+                                      Navigator.pop(context);
+                                    },
+                                    child: const Text('删除'),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                        onTap: () async {
+                          final updated = await showDialog<SubGoal>(
+                            context: context,
+                            builder: (_) => SubGoalEditor(
+                              goalId: widget.goal?.id ?? 'temp',
+                              subGoal: sub,
+                            ),
+                          );
+                          if (updated != null) {
+                            setState(() {
+                              final index = _subGoals.indexWhere((s) => s.id == sub.id);
+                              if (index != -1) _subGoals[index] = updated;
+                            });
+                          }
+                        },
+                      );
+                    })
+                    .toList(),
+              ),
               const SizedBox(height: 12),
               OutlinedButton.icon(
                 icon: const Icon(Icons.add),
